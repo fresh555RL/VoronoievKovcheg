@@ -1,17 +1,14 @@
 #version 330 core
 layout (location = 0) in vec3 Vertexpos;
 
-uniform float screen_aspect;
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
+uniform mat4 MVP;
 uniform vec3 VertexCol;
-
+uniform vec2 VertexTexCoord;
 out vec3 Color;
+// out vec2 TexCoord;
 void main(){
     
-    gl_Position =proj*view*model*vec4(Vertexpos.xyz, 1.0);
-    // gl_Position =vec4(Vertexpos.xyz, 1.0);
-
-    Color = (VertexCol);
+    gl_Position =MVP*vec4(Vertexpos.xyz, 1.0);
+    Color = VertexCol;
+    // TexCoord = VertexTexCoord;
 }

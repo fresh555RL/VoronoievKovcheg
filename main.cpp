@@ -7,10 +7,14 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
+#include <cmath>
+#define STB_IMAGE_IMPLEMENTATION  
+#include "stb_image.h"
+
 using namespace std;
 
-const int ScreenHeight = 800;
-const int ScreenWidth = 600;
+const int ScreenHeight = 1920;
+const int ScreenWidth = 1080;
 
 glm::vec3 camera_pos = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 camera_front = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -24,7 +28,9 @@ struct Model{
     glm::mat4 m;
     glm::vec3 color;
 };
-
+struct XYZ{
+    double x, y,z;
+};
 void mouse_callback(GLFWwindow* w, double xposin, double yposin){
     float xpos = xposin;
     float ypos = yposin;
@@ -67,6 +73,23 @@ int main() {
     glfwSetCursorPosCallback(w, mouse_callback);
     glEnable(GL_DEPTH_TEST);
 
+    //texture but i don`t need it lol
+    // int Twidth, Theight, nrChannels;
+    // unsigned char* Tdata = stbi_load("textures/Dot8x8.png", &Twidth, &Theight, &nrChannels, 0);
+    // unsigned int textureDot;
+    // glGenTextures(1, &textureDot);
+    // glBindTexture(GL_TEXTURE_2D, textureDot);
+    // if(Tdata){
+    //     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, Twidth, Theight, 0, GL_RGB, GL_UNSIGNED_BYTE, Tdata);
+        
+    // }
+    // else{
+    //     cout<<"Texture load error\n";
+    // }
+    // stbi_image_free(Tdata);
+
+
+
     float vertices_Cube[] = {
         -1.0f, -1.0f, -1.0f,   
         1.0f, -1.0f,  -1.0f,   
@@ -105,60 +128,37 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_Cube), vertices_Cube, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
-    // glEnableVertexAttribArray(1);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_Cube);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indexes_Cube), indexes_Cube, GL_STATIC_DRAW);
     
 
-    // unsigned int VAO,VBO;
-    // glGenVertexArrays(1, &VAO);
-    // glBindVertexArray(VAO);
-    // glGenBuffers(1, &VBO);
-    // glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    ifstream file("sphere.txt");
+    int sphere_vert_size,sphere_idx_size;
+    file>>sphere_vert_size>>sphere_idx_size;
+    vector<float> vertices_Sphere(sphere_vert_size*3);
+    vector<int> indexes_Sphere(sphere_idx_size); 
+    // float vertices_Sphere[sphere_vert_size*3];
+    // int indexes_Sphere[sphere_idx_size]; 
+    for(int i=0;i<sphere_vert_size*3;i+=3){
+        file>>vertices_Sphere[i]>>vertices_Sphere[i+1]>>vertices_Sphere[i+2];
+    }
+    for(int i=0;i<sphere_idx_size;i+=3){
+        file>>indexes_Sphere[i]>>indexes_Sphere[i+1]>>indexes_Sphere[i+2];
+    }
+
+
+    unsigned int VAO_Sph, VBO_Sph, EBO_Sph;
+    glGenVertexArrays(1,&VAO_Sph);
+    glGenBuffers(1,&VBO_Sph);
+    glBindVertexArray(VAO_Sph);
+    glGenBuffers(1, &EBO_Sph);
     
-    // float vertices[] = {
-    //     -0.5f, -0.5f, 0.0f,   1.0f, 0.1f, 0.1f,
-    //     0.5f, -0.5f, 0.0f,    0.2f, 1.0f, 0.2f,
-    //     0.5f, 0.5f, 0.0f,   0.4f, 0.6f, 1.0f,
-    //     -0.5f, 0.5f, 0.0f,   0.1f, 0.7f, 0.3f,
-
-    //    -0.5f, -0.5f, 1.0f,   1.0f, 0.4f, 0.3f, //4
-    //     0.5f, -0.5f, 1.0f,    0.7f, 0.4f, 0.6f, //5 
-    //     0.5f, 0.5f, 1.0f,   0.0f, 0.5f, 0.5f, //6
-    //     -0.5f, 0.5f, 1.0f,   0.2f, 0.3f, 0.5f // 7
-    // };
-    
-    // int idxes[] = {
-    //     0,1,2,
-    //     0,3,2,
-    //     7,3,2,
-    //     6,2,1,
-    //     5,1,0,
-    //     4,0,3,
-    //     7,6,2,
-    //     6,5,1,
-    //     5,4,0,
-    //     7,4,3,
-    //     7,6,5,
-    //     4,5,7
-        
-    // };
-
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float),  (void*)0);
-    // glEnableVertexAttribArray(0);
-
-    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float),  (void*)(3*sizeof(float)));
-    // glEnableVertexAttribArray(1);
-
-    // unsigned int EBO;
-    // glGenBuffers  (1, &EBO);
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idxes), idxes, GL_STATIC_DRAW);
-
-
-
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_Sph);
+    glBufferData(GL_ARRAY_BUFFER, vertices_Sphere.size()*sizeof(float), vertices_Sphere.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_Sph);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes_Sphere.size()*sizeof(int), indexes_Sphere.data(), GL_STATIC_DRAW);
     string vertexcode;
     string fragmentcode;
     ifstream vShaderfile;
@@ -236,37 +236,51 @@ int main() {
     models_cubes[4].m = glm::scale(models_cubes[4].m,glm::vec3(0.2f, 0.2f, 0.2f));
     models_cubes[4].color = glm::vec3(0.0f, 0.0f, 0.0f);
     
-
-    // glBindVertexArray(VAO);
+    vector<Model> models_spheres(1);
+    models_spheres[0].m = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, 0.0f, -2.0f));
+    models_spheres[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
     glUseProgram(shaderProgram);
-    int uni_loc = glGetUniformLocation(shaderProgram, "screen_aspect");
-    int uni_angle = glGetUniformLocation(shaderProgram, "angle");
-    int uni_model = glGetUniformLocation(shaderProgram, "model");
+    int uni_MVP = glGetUniformLocation(shaderProgram, "MVP");
     int uni_color = glGetUniformLocation(shaderProgram, "VertexCol");
-    int uni_view = glGetUniformLocation(shaderProgram, "view");
-    int uni_proj = glGetUniformLocation(shaderProgram, "proj");
-
-
-    auto Draw_Cubes = [&](){
+    glm::mat4 MVP;
+    glm::mat4 view;
+    glm::mat4 proj;
+    glm::mat4 VP;
+    auto Draw_Cubes = [&](glm::mat4 &VP){
         glBindVertexArray(VAO_Cube);
         glBindBuffer(GL_ARRAY_BUFFER, VBO_Cube);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_Cube);
         for(auto [model, color]:models_cubes){
-            glUniformMatrix4fv(uni_model, 1, GL_FALSE, &model[0][0]);
+            MVP = VP*model;
+            glUniformMatrix4fv(uni_MVP, 1, GL_FALSE, &MVP[0][0]);
             glUniform3fv(uni_color, 1, &color[0]);
             glDrawElements(GL_TRIANGLES, sizeof(indexes_Cube)/sizeof(int), GL_UNSIGNED_INT, 0);
         }
     };
+     auto Draw_Spheres = [&](glm::mat4 &VP){
+        glBindVertexArray(VAO_Sph);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO_Sph);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_Sph);
+        for(auto [model, color]:models_spheres){
+            MVP = VP*model;
+            glUniformMatrix4fv(uni_MVP, 1, GL_FALSE, &MVP[0][0]);
+            glUniform3fv(uni_color, 1, &color[0]);
+            // glDrawArrays(GL_POINTS, 0, sizeof(vertices_Sphere)/3/sizeof(float));
+            glDrawElements(GL_POINTS, indexes_Sphere.size(), GL_UNSIGNED_INT, 0);
+        }
+    };
 
-
+    // cout<< indexes_Sphere.size()<<'\n';
     // ===== цикл =====
+    // glClearColor(1.0f, 230.0f/255.0f, 181.0f/255.0f, 0.0f);
+    glClearColor(244.0f/255.0f,213.0f/255.0f,187.0f/255.0f, 0.0f);
     while(!glfwWindowShouldClose(w)){
 
         // float current_Frame = glfwGetTime
         if(glfwGetKey(w, GLFW_KEY_ESCAPE)== GLFW_PRESS){
             glfwSetWindowShouldClose(w, true);
         }
-        const float camera_speed = 0.05f;
+        const float camera_speed = 0.1f;
         if(glfwGetKey(w, GLFW_KEY_W)== GLFW_PRESS){
             camera_pos+=camera_speed*camera_front;
         }
@@ -291,17 +305,15 @@ int main() {
         
 
         // glClearColor(1.0f, 1, 1, 1);
+        glPointSize(3.0f);
         glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        glm::mat4 view = glm::lookAt(camera_pos, camera_pos+camera_front, camera_up);
-        glm::mat4 proj = glm::perspective(glm::radians(70.0f), (float)ScreenHeight/ScreenWidth,  0.1f, 70.0f);
-        
-        glUniform1f(uni_angle, (float)glfwGetTime());
-        glUniform1f(uni_loc, (float)ScreenHeight/ScreenWidth);
-        glUniformMatrix4fv(uni_view, 1, GL_FALSE, &view[0][0]);
-        glUniformMatrix4fv(uni_proj, 1, GL_FALSE, &proj[0][0]);
-        Draw_Cubes();
+        view = glm::lookAt(camera_pos, camera_pos+camera_front, camera_up);
+        proj = glm::perspective(glm::radians(70.0f), (float)ScreenHeight/ScreenWidth,  0.1f, 70.0f);
+        VP = proj*view;
 
+        Draw_Spheres(VP);
+        Draw_Cubes(VP);
         glfwSwapBuffers(w);
         glfwPollEvents();
     
