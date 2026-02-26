@@ -11,7 +11,7 @@
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef K::Point_3 Point_3;
 typedef CGAL::Polyhedron_3<K> Polyhedron_3;
-const int sph_pts = 1000;
+const int sph_pts = 10000;
 const int sph_total = sph_pts*3;
 using namespace std;
 

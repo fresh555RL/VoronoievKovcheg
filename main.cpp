@@ -8,6 +8,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 #include <cmath>
+
+#include <cstdlib>
+#include <ctime>
+#include <set>
+
 #define STB_IMAGE_IMPLEMENTATION  
 #include "stb_image.h"
 
@@ -159,6 +164,72 @@ int main() {
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_Sph);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes_Sphere.size()*sizeof(int), indexes_Sphere.data(), GL_STATIC_DRAW);
+    
+   
+    std::srand(std::time(nullptr));
+    set<int> triangle_pts;
+    for(;triangle_pts.size()<6;){
+        int r = std::rand();
+        r=r%sphere_vert_size;
+        // cout<<r<<'\n';
+        triangle_pts.insert(r);
+    }
+    float vertices_triagnle[18];
+    int temporary_kostil=0;
+    for(auto u:triangle_pts){
+        
+        vertices_triagnle[temporary_kostil] = vertices_Sphere[3*u];
+        vertices_triagnle[temporary_kostil+1] = vertices_Sphere[3*u+1];
+        vertices_triagnle[temporary_kostil+2] = vertices_Sphere[3*u+2];
+        temporary_kostil+=3;
+    }
+    unsigned int VAO_Tri, VBO_Tri;
+    glGenVertexArrays(1,&VAO_Tri);
+    glGenBuffers(1,&VBO_Tri);
+    glBindVertexArray(VAO_Tri);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_Tri);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_triagnle), vertices_triagnle, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+
+
+    float dot_points[12];
+    glm::vec3 AB1 = glm::vec3(vertices_triagnle[0]-vertices_triagnle[3],vertices_triagnle[1]-vertices_triagnle[4],vertices_triagnle[2]-vertices_triagnle[5]);
+    glm::vec3 AC1 = glm::vec3(vertices_triagnle[0]-vertices_triagnle[6],vertices_triagnle[1]-vertices_triagnle[7],vertices_triagnle[2]-vertices_triagnle[8]);
+    glm::vec3 Normal1= glm::cross(glm::vec3(AB1), glm::vec3(AC1));
+    glm::vec3 sph_center = glm::vec3(3.0f, 0.0f, -2.0f);
+    dot_points[0] = sph_center.x+Normal1.x*(-5);
+    dot_points[1] = sph_center.y+Normal1.y*(-5);
+    dot_points[2] = sph_center.z+Normal1.z*(-5);
+    dot_points[3] = sph_center.x+Normal1.x*(5);
+    dot_points[4] = sph_center.y+Normal1.y*(5);
+    dot_points[5] = sph_center.z+Normal1.z*(5);
+
+
+
+    glm::vec3 AB2 = glm::vec3(vertices_triagnle[0+9]-vertices_triagnle[3+9],vertices_triagnle[1+9]-vertices_triagnle[4+9],vertices_triagnle[2+9]-vertices_triagnle[5+9]);
+    glm::vec3 AC2 = glm::vec3(vertices_triagnle[0+9]-vertices_triagnle[6+9],vertices_triagnle[1+9]-vertices_triagnle[7+9],vertices_triagnle[2+9]-vertices_triagnle[8+9]);
+    glm::vec3 Normal2= glm::cross(glm::vec3(AB2), glm::vec3(AC2));
+    dot_points[6] = sph_center.x+Normal2.x*(-5);
+    dot_points[7] = sph_center.y+Normal2.y*(-5);
+    dot_points[8] = sph_center.z+Normal2.z*(-5);
+    dot_points[9] = sph_center.x+Normal2.x*(5);
+    dot_points[10] = sph_center.y+Normal2.y*(5);
+    dot_points[11] = sph_center.z+Normal2.z*(5);
+
+
+    unsigned int VAO_line, VBO_line;
+    glGenVertexArrays(1,&VAO_line);
+    glGenBuffers(1,&VBO_line);
+    glBindVertexArray(VAO_line);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_line);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(dot_points),dot_points, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
     string vertexcode;
     string fragmentcode;
     ifstream vShaderfile;
@@ -236,11 +307,21 @@ int main() {
     models_cubes[4].m = glm::scale(models_cubes[4].m,glm::vec3(0.2f, 0.2f, 0.2f));
     models_cubes[4].color = glm::vec3(0.0f, 0.0f, 0.0f);
     
+    models_cubes[0].m = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 10.0f, 10.0f));
+    models_cubes[0].m = glm::translate(models_cubes[0].m, glm::vec3(0.5f, 0.0f, 3.0f));
+   
+    // models_cubes[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+
+
+
+
     vector<Model> models_spheres(1);
     models_spheres[0].m = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, 0.0f, -2.0f));
-    models_spheres[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+    // models_spheres[0].m = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    models_spheres[0].color = glm::vec3(0.0f, 2.0f, 1.0f);
     glUseProgram(shaderProgram);
     int uni_MVP = glGetUniformLocation(shaderProgram, "MVP");
+    int uni_model = glGetUniformLocation(shaderProgram, "model");
     int uni_color = glGetUniformLocation(shaderProgram, "VertexCol");
     glm::mat4 MVP;
     glm::mat4 view;
@@ -252,6 +333,8 @@ int main() {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_Cube);
         for(auto [model, color]:models_cubes){
             MVP = VP*model;
+
+            glUniformMatrix4fv(uni_model, 1, GL_FALSE, &model[0][0]);
             glUniformMatrix4fv(uni_MVP, 1, GL_FALSE, &MVP[0][0]);
             glUniform3fv(uni_color, 1, &color[0]);
             glDrawElements(GL_TRIANGLES, sizeof(indexes_Cube)/sizeof(int), GL_UNSIGNED_INT, 0);
@@ -262,25 +345,51 @@ int main() {
         glBindBuffer(GL_ARRAY_BUFFER, VBO_Sph);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_Sph);
         for(auto [model, color]:models_spheres){
+
             MVP = VP*model;
             glUniformMatrix4fv(uni_MVP, 1, GL_FALSE, &MVP[0][0]);
+            glUniformMatrix4fv(uni_model, 1, GL_FALSE, &model[0][0]);
             glUniform3fv(uni_color, 1, &color[0]);
             // glDrawArrays(GL_POINTS, 0, sizeof(vertices_Sphere)/3/sizeof(float));
-            glDrawElements(GL_POINTS, indexes_Sphere.size(), GL_UNSIGNED_INT, 0);
+            glDrawElements(GL_TRIANGLES, indexes_Sphere.size(), GL_UNSIGNED_INT, 0);
         }
     };
+    auto Draw_12_30Triangle = [&](glm::mat4 &VP){
+        glBindVertexArray(VAO_Tri);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO_Tri);
+        for(auto [model, color]:models_spheres){
 
+            MVP = VP*model;
+            glUniformMatrix4fv(uni_MVP, 1, GL_FALSE, &MVP[0][0]);
+            glUniformMatrix4fv(uni_model, 1, GL_FALSE, &model[0][0]);
+            glUniform3fv(uni_color, 1, &color[0]);
+            glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices_triagnle)/3/sizeof(float));
+        }
+    };
+    auto Draw_12_30line = [&](glm::mat4 &VP){
+        glBindVertexArray(VAO_line);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO_line);
+        for(auto [model, color]:models_spheres){
+            model = glm::mat4(1.0f);
+            color = glm::vec3(1.0f, 0.1f, 0.1f);
+            MVP = VP*model;
+            glUniformMatrix4fv(uni_MVP, 1, GL_FALSE, &MVP[0][0]);
+            glUniformMatrix4fv(uni_model, 1, GL_FALSE, &model[0][0]);
+            glUniform3fv(uni_color, 1, &color[0]);
+            glDrawArrays(GL_LINES, 0, sizeof(dot_points)/3/sizeof(float));
+        }
+    };
     // cout<< indexes_Sphere.size()<<'\n';
     // ===== цикл =====
     // glClearColor(1.0f, 230.0f/255.0f, 181.0f/255.0f, 0.0f);
-    glClearColor(244.0f/255.0f,213.0f/255.0f,187.0f/255.0f, 0.0f);
+    // glClearColor(244.0f/255.0f,213.0f/255.0f,187.0f/255.0f, 0.0f);
     while(!glfwWindowShouldClose(w)){
 
         // float current_Frame = glfwGetTime
         if(glfwGetKey(w, GLFW_KEY_ESCAPE)== GLFW_PRESS){
             glfwSetWindowShouldClose(w, true);
         }
-        const float camera_speed = 0.1f;
+        const float camera_speed = 0.02f;
         if(glfwGetKey(w, GLFW_KEY_W)== GLFW_PRESS){
             camera_pos+=camera_speed*camera_front;
         }
@@ -305,13 +414,15 @@ int main() {
         
 
         // glClearColor(1.0f, 1, 1, 1);
-        glPointSize(3.0f);
+        glPointSize(1.0f);
+        glLineWidth(3.0f);
         glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         view = glm::lookAt(camera_pos, camera_pos+camera_front, camera_up);
         proj = glm::perspective(glm::radians(70.0f), (float)ScreenHeight/ScreenWidth,  0.1f, 70.0f);
         VP = proj*view;
-
+        // Draw_12_30Triangle(VP);
+        // Draw_12_30line(VP);
         Draw_Spheres(VP);
         Draw_Cubes(VP);
         glfwSwapBuffers(w);
