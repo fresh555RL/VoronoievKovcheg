@@ -1,15 +1,10 @@
 #version 330 core
 layout (location = 0) in vec3 Vertexpos;
 
-uniform mat4 MVP;
-uniform mat4 model;
-uniform vec3 VertexCol;
-out vec3 Color;
-out vec3 Pos;
+out vec2 _UV;
 void main(){
 
      
-    Pos = (model * vec4(Vertexpos,1.0)).xyz;
-    gl_Position =MVP*vec4(Vertexpos.xyz, 1.0);
-    Color = VertexCol;
+    gl_Position =vec4(Vertexpos.xyz, 1.0);
+    _UV = gl_Position.xy;
 }
