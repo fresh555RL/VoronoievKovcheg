@@ -4,15 +4,14 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 #include <cmath>
-
 #include <cstdlib>
 #include <ctime>
 #include <set>
-
 #define STB_IMAGE_IMPLEMENTATION  
 #include "stb_image.h"
 
@@ -22,7 +21,7 @@ const int ScreenHeight = 1920;
 const int ScreenWidth = 1000;
 const float FOV = 70.0;
 
-glm::vec3 camera_pos = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 camera_pos = glm::vec3(-3.0f, 3.0f, 0.0f);
 glm::vec3 camera_front = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 World_up = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::vec3 camera_up;
@@ -99,7 +98,125 @@ void programError(const unsigned int& shaderProgram,const unsigned int& vertexSh
 
 
 
+float opSmoothUnion( float a, float b, float k )
+{
+    k *= 4.0f;
+    float h = max(k-abs(a-b),0.0f);
+    return min(a, b) - h*h*0.25f/k;
+}
 
+float opSmoothSubtraction( float a, float b, float k )
+{
+    return -opSmoothUnion(a,-b,k);
+}
+
+float opSmoothIntersection( float a, float b, float k )
+{
+    return -opSmoothUnion(-a,-b,k);
+}
+
+
+
+
+
+float dSphere(glm::vec3 p, glm::vec4 c){
+
+    return glm::length(p-c.xyz())-c.w;
+}
+float sdTriPrism( glm::vec3 p, glm::vec2 h, glm::vec3 c )
+{
+  glm::vec3 q = abs(p-c);
+  return max(q.z-h.y,max(q.x*0.866025f+p.y*0.5f,-p.y)-h.x*0.5f);
+}
+
+float dCube(glm::vec3 p,glm::vec3 c, glm::vec3 b){
+    glm::vec3 q = abs(p-c) - b;
+    return glm::length(max(q,0.0f)) + min(max(q.x,max(q.y,q.z)),0.0f);
+}
+float sdTorus( glm::vec3 p, glm::vec2 t )
+{
+  glm::vec2 q = glm::vec2(glm::length(p.xz())-t.x,p.y);
+  return glm::length(q)-t.y;
+}
+glm::vec2 cmp(glm::vec2 a, glm::vec2 b){
+    return (a.x<b.x?a:b);
+}
+float sdRoundBox( glm::vec3 p, glm::vec3 b, float r )
+{
+  glm::vec3 q = abs(p) - b + r;
+  return glm::length(max(q,0.0f)) + min(max(q.x,max(q.y,q.z)),0.0f) - r;
+}
+float sdCylinder( glm::vec3 p, glm::vec3 c )
+{
+  return glm::length(p.xz()-c.xy())-c.z;
+}
+
+
+// vec2 map(vec3 p){
+//     vec2 d = vec2(1e9, 0);
+
+//     vec4 Sphere1 = vec4(3.0, 0.0, -2.0, 1.2);
+//     vec2 Torus1 = vec2(1.0, 0.5);
+//     vec3 Cylinder1 = vec3(3.0,5.0, 2.0);
+//     vec3 RBox1 = vec3(10.0, 1.0, 10.0);
+//     vec3 BBox = vec3(10.0, 20.0, 10.0);
+
+//     vec2 dRb = vec2(sdRoundBox(p, RBox1, 0.0),4);//rad was 0.5
+//     vec2 dCy =  vec2(sdCylinder(p, Cylinder1),3);
+//     // vec2 dS = vec2(dSphere(p,Sphere1), 1);
+//     // vec2 dT = vec2(sdTorus(p,Torus1), 1);
+//     vec2 dBox = vec2(sdRoundBox(p,BBox, 0.0), 5);//5
+//     // d = cmp(d, dS);   
+//     // d = cmp(d, dT);
+//     float dirka = opSmoothSubtraction(dCy.x, dRb.x, 0.3);
+//     d = cmp(d, abs(dBox));
+//     d = cmp(d, vec2(dirka,3));
+    
+//     // d = cmp(d, dCy);
+
+//     return d;
+// }
+
+glm::vec2 map(glm::vec3 p){
+    glm::vec2 d = glm::vec2(1e9f, 0);
+
+    glm::vec2 Torus1 = glm::vec2(1.0f, 0.5f);
+    glm::vec3 Cylinder1 = glm::vec3(3.0f,5.0f, 1.0f);
+    glm::vec3 RBox1 = glm::vec3(10.0f, 1.0f, 10.0f);
+
+    glm::vec2 dRb =  glm::vec2(sdRoundBox(p, RBox1, 0.5f),4);
+    glm::vec2 dCy = glm::vec2(sdCylinder(p, Cylinder1),3);
+    
+    // d = cmp(d, dS);   
+    // d = cmp(d, dT);
+    float dirka = opSmoothSubtraction(dCy.x, dRb.x, 0.3f);
+    d = cmp(d, glm::vec2(dirka,3));
+    // d = cmp(d, dCy);
+
+    return d;
+}
+
+float bordermap(glm::vec3 p){
+    float d = 1e9;
+    glm::vec3 BBox1 = glm::vec3(10.0f, 20.0f, 10.0f);
+    float dBb = sdRoundBox(p, BBox1, 0.5f);
+   
+    return -dBb;
+}
+
+glm::vec3 Calcnorm(glm::vec3 p){
+    const float Eps = 0.001f;
+    return glm::normalize(glm::vec3(
+        map(p+glm::vec3(Eps,0.0f,0.0f)).x-map(p-glm::vec3(Eps,0.0f,0.0f)).x,
+        map(p+glm::vec3(0.0f,Eps,0.0f)).x-map(p-glm::vec3(0.0f,Eps,0.0f)).x,
+        map(p+glm::vec3(0.0f,0.0f,Eps)).x-map(p-glm::vec3(0.0f,0.0f,Eps)).x
+        )
+    );
+}
+
+glm::vec3 projDir(glm::vec3 rd, glm::vec3 n){
+    return glm::normalize(rd - dot(rd,n)*n);
+}
 
 int main() {
     glfwInit();
@@ -111,7 +228,8 @@ int main() {
     
 
     const string PATH = "shaders/";
-    string to_open = "object";
+    vector<string> list_to_open = {"shader", "scaner", "object"};
+    string to_open = list_to_open[1];
     
     string vertexcode;
     string fragmentcode;
@@ -160,7 +278,7 @@ int main() {
         vector<float> normals;
         vector<int> idxnormals;
         
-        string path_model = (string("models/") + "12221_Cat_v1_l3" +".obj");
+        string path_model = (string("models/") + "Kalisa_for_engine" +".obj");
         std::ifstream file(path_model);
         std::string line;
         glm::vec3 abc;
@@ -201,8 +319,8 @@ int main() {
             }
             if(type=="f"){
                 char trash;
-                bool flag = 1;
-                int countslash = 1;
+                bool flag = 0;
+                int countslash = 2;
                 if(countslash==1){
                     ss>>indexV[0]>>trash>>indexN[0];if(flag){ss>>trash>>indexN[0];}
                     ss>>indexV[1]>>trash>>indexN[1];if(flag){ss>>trash>>indexN[0];}
@@ -222,19 +340,9 @@ int main() {
                 idxes.push_back(indexV[2]-1);
                 idxes.push_back(indexV[3]-1);
                 idxes.push_back(indexV[0]-1);
-
-
-
-                // idxnormals.push_back(glm::vec3(__0123.x-1,__0123.y-1,__0123.z-1));
-                // idxnormals.push_back(glm::vec3(__0123.x-1,__0123.z-1,__0123.w-1));
-            }
-            
+            }   
             
         }
-
-
-
-
         glGenBuffers(1, &VBO);
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &EBO);
@@ -249,7 +357,7 @@ int main() {
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, idxes.size()*sizeof(int), idxes.data(), GL_STATIC_DRAW);
 
     }
-    else{
+    else{//not obj
         
         vector<float> coords = {
         -1.0, -1.0, 1.0,
@@ -282,11 +390,20 @@ int main() {
     glm::mat4 Model = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f,0.0f,-2.0f));
     // Model = glm::scale(Model, glm::vec3(0.2f));
     // Model = glm::rotate(Model, glm::radians(150.0f), glm::vec3(0.0f,1.0f, 1.0f));
+    
+    glm::vec3 dir = glm::vec3(1.0f, 0.0f, 0.0f);//for scaner
+    glm::vec3 right;
+    glm::vec3 normal = Calcnorm(camera_pos);
+    if(to_open=="scaner"){
+        camera_pos-= normal*map(camera_pos).x; 
+        dir = projDir(dir, normal);
+    }
+
+    const float scan_radius = 3.0f;
+    
 
 
-
-
-
+    
     int uni_aspect = glGetUniformLocation(shaderProgram, "Aspect");
     int uni_campos = glGetUniformLocation(shaderProgram, "Cam_pos");
     int uni_camright = glGetUniformLocation(shaderProgram, "Cam_right");
@@ -294,55 +411,119 @@ int main() {
     int uni_camfront = glGetUniformLocation(shaderProgram, "Cam_front");
     int uni_FOV = glGetUniformLocation(shaderProgram, "FOV");
     int uni_time = glGetUniformLocation(shaderProgram, "timenow");
+    
+    int uni_scan_forward = glGetUniformLocation(shaderProgram, "dForward");
+    int uni_scan_right = glGetUniformLocation(shaderProgram, "dRight");
+    int uni_scan_Radius = glGetUniformLocation(shaderProgram, "Radius");
+    glUniform3fv(uni_scan_forward,1,&dir[0]);
+    glUniform3fv(uni_scan_right,1,&right[0]);
+    // glUniform3fv(,1,&camera_up[0]);  
+    glUniform1f(uni_scan_Radius, scan_radius); 
+
+
+    const float camera_speed = 0.12f;
+    const float border_eps   = 0.18f;
+    glm::vec3 camera_pos_copy;
     glUniform1f(uni_aspect, ((float)ScreenHeight/ScreenWidth));
     while(!glfwWindowShouldClose(w)){
 
-        // float current_Frame = glfwGetTime
-        if(glfwGetKey(w, GLFW_KEY_ESCAPE)== GLFW_PRESS){
-            glfwSetWindowShouldClose(w, true);
-        }
-        const float camera_speed = 0.12f;
-        if(glfwGetKey(w, GLFW_KEY_W)== GLFW_PRESS){
-            camera_pos+=camera_speed*camera_front;
-        }
-        if(glfwGetKey(w, GLFW_KEY_S)== GLFW_PRESS){
-            camera_pos-=camera_speed*camera_front;
-        }
+        float current_Frame = glfwGetTime();
+        if(to_open=="scaner"){
+            camera_pos_copy = camera_pos;
+            normal = Calcnorm(camera_pos);
+            dir = projDir(dir, normal);
+            // float chatgpt = glm::step(0.95f, abs(normal.x));
+            // chatgpt_help = glm::vec3(0.0f, 1.0f, 0.0f)*chatgpt-(glm::vec3(1.0f, 0.0f, 0.0f)*(1.0f-chatgpt));  
+            // a = vec3(0.0, 1.0, 0.0);
+            if(glfwGetKey(w, GLFW_KEY_W)== GLFW_PRESS){
+                camera_pos_copy+=camera_speed*glm::normalize(glm::cross(dir,normal));
+                if(bordermap(camera_pos_copy)>border_eps){
+                    camera_pos = camera_pos_copy;
+                }
+            }
+            if(glfwGetKey(w, GLFW_KEY_S)== GLFW_PRESS){
+                camera_pos_copy-=camera_speed*glm::normalize(glm::cross(dir,normal));
+                if(bordermap(camera_pos_copy)>border_eps){
+                    camera_pos = camera_pos_copy;
+                }
+            }
 
-        if(glfwGetKey(w, GLFW_KEY_A)== GLFW_PRESS){
-            camera_pos-=camera_speed*glm::normalize(glm::cross(camera_front,camera_up));
-        }
-        if(glfwGetKey(w, GLFW_KEY_D)== GLFW_PRESS){
-            camera_pos+=camera_speed*glm::normalize(glm::cross(camera_front,camera_up));
-        }
+            if(glfwGetKey(w, GLFW_KEY_A)== GLFW_PRESS){
+                camera_pos_copy-=camera_speed*dir;
+                if(bordermap(camera_pos_copy)>border_eps){
+                    camera_pos = camera_pos_copy;
+                }
+            }
+            if(glfwGetKey(w, GLFW_KEY_D)== GLFW_PRESS){
+                camera_pos_copy+=camera_speed*dir;
+                if(bordermap(camera_pos_copy)>border_eps){
+                    camera_pos = camera_pos_copy;
+                }
+            }
+            normal = Calcnorm(camera_pos);
+            dir = projDir(dir, normal);
+            right = glm::normalize(glm::cross(dir, normal));
+            dir = glm::normalize(glm::cross(normal,right));
+            // cout<<"----\n";
+            // cout<<right.x<<" "<<right.y<<" "<<right.z<<"\n";
+            // cout<<dir.x<<" "<<dir.y<<" "<<dir.z<<"\n";
+            // cout<<"----\n";
 
-    
 
-        if(glfwGetKey(w, GLFW_KEY_SPACE)== GLFW_PRESS){
-            camera_pos+=camera_speed*camera_up;
-        }
-        if(glfwGetKey(w, GLFW_KEY_LEFT_SHIFT)== GLFW_PRESS){
-            camera_pos-=camera_speed*camera_up;
-        }
-        
+            glUniform3fv(uni_scan_forward,1,&dir[0]);
+            glUniform3fv(uni_scan_right,1,&right[0]);
+            // glUniform3fv(,1,&camera_up[0]);  
+            glUniform1f(uni_scan_Radius, scan_radius); 
+            
 
-        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+        }
+        else{
+            if(glfwGetKey(w, GLFW_KEY_ESCAPE)== GLFW_PRESS){
+                glfwSetWindowShouldClose(w, true);
+            }
+            
+            if(glfwGetKey(w, GLFW_KEY_W)== GLFW_PRESS){
+                camera_pos+=camera_speed*camera_front;
+            }
+            if(glfwGetKey(w, GLFW_KEY_S)== GLFW_PRESS){
+                camera_pos-=camera_speed*camera_front;
+            }
+
+            if(glfwGetKey(w, GLFW_KEY_A)== GLFW_PRESS){
+                camera_pos-=camera_speed*glm::normalize(glm::cross(camera_front,camera_up));
+            }
+            if(glfwGetKey(w, GLFW_KEY_D)== GLFW_PRESS){
+                camera_pos+=camera_speed*glm::normalize(glm::cross(camera_front,camera_up));
+            }
+            if(glfwGetKey(w, GLFW_KEY_SPACE)== GLFW_PRESS){
+                camera_pos+=camera_speed*World_up;
+            }
+            if(glfwGetKey(w, GLFW_KEY_LEFT_SHIFT)== GLFW_PRESS){
+                camera_pos-=camera_speed*World_up;
+            }
         camera_right = glm::normalize(glm::cross(camera_front,World_up));
         camera_up = glm::normalize(glm::cross(camera_right, camera_front));
         view = glm::lookAt(camera_pos, camera_pos+camera_front, camera_up);
         proj = glm::perspective(glm::radians(70.0f), (float)ScreenHeight/ScreenWidth,  0.1f, 70.0f);
-        glm::mat4 MVP = proj*view*Model;
+        MVP = proj*view*Model;
         glUniformMatrix4fv(uni_MVP,1, GL_FALSE,&MVP[0][0]);
-
         glUniform3fv(uni_camfront,1,&camera_front[0]);
         glUniform3fv(uni_camright,1,&camera_right[0]);
-        glUniform3fv(uni_campos,1,&camera_pos[0]);
         glUniform3fv(uni_camup,1,&camera_up[0]);  
         glUniform1f(uni_FOV, FOV); 
         glUniform1f(uni_time, glfwGetTime());  
+        }
+
+        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        glDrawElements(GL_TRIANGLES, idxes.size()*sizeof(int), GL_UNSIGNED_INT, 0);
+        
+        
+        
+
+
+        glUniform3fv(uni_campos,1,&camera_pos[0]);
+    
+        glDrawElements(GL_TRIANGLES, idxes.size(), GL_UNSIGNED_INT, 0);
         glfwSwapBuffers(w);
         glfwPollEvents();
     
