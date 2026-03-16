@@ -1,27 +1,15 @@
 #version 330 core
-//for tests
+
 uniform float Aspect;
 uniform vec3 Cam_pos;
 uniform vec3 dForward;
 uniform vec3 dRight;
 uniform float Radius;
-uniform float timenow;
-uniform int MODE;
 in vec2 _UV;
 out vec4 FragColor;
+
+
 #define PI 3.14159265359
-
-float sdCapsule(vec2 p, vec2 dir, float L, float r)
-{
-    vec2 b = dir * L;
-
-    vec2 pa = p;
-    vec2 ba = b;
-
-    float h = clamp(dot(pa,ba)/dot(ba,ba), 0.0, 1.0);
-    return length(pa - ba*h) - r;
-}
-
 float opSmoothUnion( float a, float b, float k )
 {
     k *= 4.0;
@@ -34,24 +22,16 @@ float opSmoothSubtraction( float a, float b, float k )
     return -opSmoothUnion(a,-b,k);
 }
 
-float opSmoothIntersection( float a, float b, float k )
+float sdTorus( vec3 p, vec2 t )
 {
-    return -opSmoothUnion(-a,-b,k);
+    p.x-=2.0;
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y;
 }
-
 float sdSphere(vec3 p, vec4 c){return length(p-c.xyz)-c.w;}
 float sdTriPrism( vec3 p, vec2 h, vec3 c )
 {   vec3 q = abs(p-c);
     return max(q.z-h.y,max(q.x*0.866025+p.y*0.5,-p.y)-h.x*0.5);
-}
-float sdCube(vec3 p,vec3 c, vec3 b){
-    vec3 q = abs(p-c) - b;
-    return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
-}
-float sdTorus( vec3 p, vec2 t )
-{
-  vec2 q = vec2(length(p.xz)-t.x,p.y);
-  return length(q)-t.y;
 }
 vec2 cmp(vec2 a, vec2 b){return (a.x<b.x?a:b);}
 float sdRoundBox( vec3 p, vec3 b, float r )
@@ -63,9 +43,10 @@ float sdCylinder( vec3 p, vec3 c )
 {
   return length(p.xz-c.xy)-c.z;
 }
-//SDFs
-
-
+float sdCube(vec3 p,vec3 c, vec3 b){
+    vec3 q = abs(p-c) - b;
+    return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
 float bordermap(vec3 p){
     float d = 1e9;
     vec3 BBox1 = vec3(10.0, 20.0, 10.0);
@@ -78,16 +59,13 @@ float dPlayer(vec3 p, vec3 now){
 }
 vec2 map(vec3 p){
     vec2 d = vec2(1e9, 0);
-
-    vec3 Cylinder1 = vec3(3.0,5.0, 1.0);
-    vec3 RBox1 = vec3(10.0, 1.0, 10.0);
-   
-    vec2 dPSph = vec2(sdSphere(p,vec4(p,0.2)),1);
-    vec2 dRb = vec2(sdRoundBox(p, RBox1, 0.5),4);//rad was 0.5
-    vec2 dCy =  vec2(sdCylinder(p, Cylinder1),3);
-    float dirka = opSmoothSubtraction(dCy.x, dRb.x, 0.3);
-    d = cmp(d, vec2(dirka,3));
-    
+    vec4 Sphere1 = vec4(vec3(0.0), 1.0);
+    vec3 Box1 = vec3(0.8);
+    vec2 Torus = vec2(2.0, 1.3);
+    float dB = sdCube(p, vec3(0.0),Box1);
+    float dS = sdSphere(p, Sphere1);
+    vec2 dT = vec2(sdTorus(p,Torus), 0);//5
+    d = cmp(d,dT);
     return d;
 }
 
@@ -127,39 +105,46 @@ vec3 mapmarch(vec3 ro, vec3 rd, float dist){
     ro-=d*n; 
     return ro;
 }
+float curvature(vec3 p)
+{
+    float e = 0.008;
 
+    vec3 n  = Calcnorm(p);
 
+    vec3 nx = Calcnorm(p + vec3(e,0,0));
+    vec3 ny = Calcnorm(p + vec3(0,e,0));
+    vec3 nz = Calcnorm(p + vec3(0,0,e));
 
-void MapColor1(vec3 p, vec3 ro){
-    float coloridx = map(p).y;
-    const vec3 colors[6] = vec3[](
-    vec3(1.0),
-    vec3(0.66, 0.07, 0.68),
-    vec3(0.86, 0.79, 0.17),
-    vec3(0.98, 0.247, 0.008),
-    vec3(0.5, 0.5, 0.008),
-    vec3(1.0, 0.0, 0.008)
-    
-    );
-    vec3 colorBase = colors[int(coloridx)];
-    float onigiri = step(0.0, sin(p.x*25)+sin(p.y*25)+sin(p.z*25));
-
-    colorBase = mix(colorBase, vec3(0.0, 0.0, 0.7), step(p.y, 0.0));
-    vec3 even_strong = vec3(0.3);
-    vec3 color = colorBase+even_strong*onigiri;
-    color = mix(color, vec3(0.83, 0.2, 0.75), step(dPlayer(p, ro),0.0 ));
-
-    FragColor = vec4(color,1.0);
-    if(bordermap(p)<0.1){
-        FragColor = vec4(colors[5], 1.0);
-    }
-
-
-    
-    
-    // FragColor = vec4(colorBase+even_strong*space_even, 1.0);
+    return (nx.x - n.x +
+            ny.y - n.y +
+            nz.z - n.z) / e;
 }
 
+
+void MapColor(vec3 p, vec3 ro){
+    const vec3 colors[3] = vec3[](
+       vec3(0.8, 0.8, 0.8),
+       vec3(1.0, 0.0, 0),
+       vec3(0.0, 1.0, 0.0)
+    );
+     vec3 colorBase = colors[0];
+
+        float onigiri = step(0.0, sin(p.x*25)+sin(p.y*25)+sin(p.z*25));
+        vec3 even_strong = vec3(0.3);
+
+        float k = curvature(p);
+        k = tanh((k-0.8)*5.0);
+
+        float convex  = clamp(k,0.0, 0.7);
+        float concave = clamp(-k,0.0, 0.7);
+
+        colorBase = mix(colorBase, colors[1], concave);
+        colorBase = mix(colorBase, colors[2], convex);
+
+        FragColor = vec4(colorBase + even_strong*onigiri,1.0);
+        FragColor = mix(FragColor, vec4(0.83, 0.2, 0.75, 1.0), step(dPlayer(p, ro),-0.3 ));
+
+}
 
 void main(){
 
@@ -176,10 +161,7 @@ void main(){
     vec3 rd = cos(angle)*dForward + sin(angle)*dRight;
     //----
     vec3 point = mapmarch(ro, rd, dist);
-    if(1==1){
-        MapColor1(point, ro);
-    }
-    // FragColor = vec4(vec3(length(uv)), 1.0);
+    MapColor(point, ro);
     
 
 }

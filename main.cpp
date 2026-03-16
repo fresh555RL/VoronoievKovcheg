@@ -21,7 +21,7 @@ const int ScreenHeight = 1920;
 const int ScreenWidth = 1000;
 const float FOV = 70.0;
 
-glm::vec3 camera_pos = glm::vec3(-3.0f, 3.0f, 0.0f);
+glm::vec3 camera_pos = glm::vec3(0.0f, 3.0f, 0.0f);
 glm::vec3 camera_front = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 World_up = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::vec3 camera_up;
@@ -97,6 +97,9 @@ void programError(const unsigned int& shaderProgram,const unsigned int& vertexSh
     
 
 
+glm::vec3 projDir(glm::vec3 rd, glm::vec3 n){
+    return glm::normalize(rd - dot(rd,n)*n);
+}
 
 float opSmoothUnion( float a, float b, float k )
 {
@@ -115,11 +118,7 @@ float opSmoothIntersection( float a, float b, float k )
     return -opSmoothUnion(-a,-b,k);
 }
 
-
-
-
-
-float dSphere(glm::vec3 p, glm::vec4 c){
+float sdSphere(glm::vec3 p, glm::vec4 c){
 
     return glm::length(p-c.xyz())-c.w;
 }
@@ -129,7 +128,7 @@ float sdTriPrism( glm::vec3 p, glm::vec2 h, glm::vec3 c )
   return max(q.z-h.y,max(q.x*0.866025f+p.y*0.5f,-p.y)-h.x*0.5f);
 }
 
-float dCube(glm::vec3 p,glm::vec3 c, glm::vec3 b){
+float sdCube(glm::vec3 p,glm::vec3 c, glm::vec3 b){
     glm::vec3 q = abs(p-c) - b;
     return glm::length(max(q,0.0f)) + min(max(q.x,max(q.y,q.z)),0.0f);
 }
@@ -150,74 +149,138 @@ float sdCylinder( glm::vec3 p, glm::vec3 c )
 {
   return glm::length(p.xz()-c.xy())-c.z;
 }
-
-
-// vec2 map(vec3 p){
-//     vec2 d = vec2(1e9, 0);
-
-//     vec4 Sphere1 = vec4(3.0, 0.0, -2.0, 1.2);
-//     vec2 Torus1 = vec2(1.0, 0.5);
-//     vec3 Cylinder1 = vec3(3.0,5.0, 2.0);
-//     vec3 RBox1 = vec3(10.0, 1.0, 10.0);
-//     vec3 BBox = vec3(10.0, 20.0, 10.0);
-
-//     vec2 dRb = vec2(sdRoundBox(p, RBox1, 0.0),4);//rad was 0.5
-//     vec2 dCy =  vec2(sdCylinder(p, Cylinder1),3);
-//     // vec2 dS = vec2(dSphere(p,Sphere1), 1);
-//     // vec2 dT = vec2(sdTorus(p,Torus1), 1);
-//     vec2 dBox = vec2(sdRoundBox(p,BBox, 0.0), 5);//5
-//     // d = cmp(d, dS);   
-//     // d = cmp(d, dT);
-//     float dirka = opSmoothSubtraction(dCy.x, dRb.x, 0.3);
-//     d = cmp(d, abs(dBox));
-//     d = cmp(d, vec2(dirka,3));
-    
-//     // d = cmp(d, dCy);
-
-//     return d;
-// }
-
-glm::vec2 map(glm::vec3 p){
-    glm::vec2 d = glm::vec2(1e9f, 0);
-
-    glm::vec2 Torus1 = glm::vec2(1.0f, 0.5f);
-    glm::vec3 Cylinder1 = glm::vec3(3.0f,5.0f, 1.0f);
-    glm::vec3 RBox1 = glm::vec3(10.0f, 1.0f, 10.0f);
-
-    glm::vec2 dRb =  glm::vec2(sdRoundBox(p, RBox1, 0.5f),4);
-    glm::vec2 dCy = glm::vec2(sdCylinder(p, Cylinder1),3);
-    
-    // d = cmp(d, dS);   
-    // d = cmp(d, dT);
-    float dirka = opSmoothSubtraction(dCy.x, dRb.x, 0.3f);
-    d = cmp(d, glm::vec2(dirka,3));
-    // d = cmp(d, dCy);
-
-    return d;
+float sdFlatWorld(glm::vec3 p){
+    return p.y;
 }
 
-float bordermap(glm::vec3 p){
+
+
+float bordermap0(glm::vec3 p){
     float d = 1e9;
     glm::vec3 BBox1 = glm::vec3(10.0f, 20.0f, 10.0f);
     float dBb = sdRoundBox(p, BBox1, 0.5f);
    
     return -dBb;
 }
+float map0(glm::vec3 p){
+    float d = 1e9f;
+    glm::vec2 Torus1 = glm::vec2(1.0f, 0.5f);
+    glm::vec3 Cylinder1 = glm::vec3(3.0f,5.0f, 1.0f);
+    glm::vec3 RBox1 = glm::vec3(10.0f, 1.0f, 10.0f);
 
-glm::vec3 Calcnorm(glm::vec3 p){
+    float dRb =  sdRoundBox(p, RBox1, 0.5f);
+    float  dCy = sdCylinder(p, Cylinder1);
+    float dirka = opSmoothSubtraction(dCy, dRb, 0.3f);
+    d = min(d, dirka);
+
+    return d;
+}
+glm::vec3 Calcnorm0(glm::vec3 p){
     const float Eps = 0.001f;
     return glm::normalize(glm::vec3(
-        map(p+glm::vec3(Eps,0.0f,0.0f)).x-map(p-glm::vec3(Eps,0.0f,0.0f)).x,
-        map(p+glm::vec3(0.0f,Eps,0.0f)).x-map(p-glm::vec3(0.0f,Eps,0.0f)).x,
-        map(p+glm::vec3(0.0f,0.0f,Eps)).x-map(p-glm::vec3(0.0f,0.0f,Eps)).x
+        map0(p+glm::vec3(Eps,0.0f,0.0f))-map0(p-glm::vec3(Eps,0.0f,0.0f)),
+        map0(p+glm::vec3(0.0f,Eps,0.0f))-map0(p-glm::vec3(0.0f,Eps,0.0f)),
+        map0(p+glm::vec3(0.0f,0.0f,Eps))-map0(p-glm::vec3(0.0f,0.0f,Eps))
         )
     );
 }
-
-glm::vec3 projDir(glm::vec3 rd, glm::vec3 n){
-    return glm::normalize(rd - dot(rd,n)*n);
+//--------------------------
+float bordermap1(glm::vec3 p){
+    return 1e5f;
 }
+float map1(glm::vec3 p){
+    float d = 1e9f;
+    glm::vec4 Sphere1 = glm::vec4(0.0, 0.0, 0.0, 2.0);
+    float dSph = sdSphere(p,Sphere1);
+    d = min(d, dSph);
 
+    return d;
+}
+glm::vec3 Calcnorm1(glm::vec3 p){
+    const float Eps = 0.001f;
+    return glm::normalize(glm::vec3(
+        map1(p+glm::vec3(Eps,0.0f,0.0f))-map1(p-glm::vec3(Eps,0.0f,0.0f)),
+        map1(p+glm::vec3(0.0f,Eps,0.0f))-map1(p-glm::vec3(0.0f,Eps,0.0f)),
+        map1(p+glm::vec3(0.0f,0.0f,Eps))-map1(p-glm::vec3(0.0f,0.0f,Eps))
+        )
+    );
+}
+//---------------------
+float bordermap3(glm::vec3 p){
+    return 1e5f;
+}
+float map3(glm::vec3 p){
+    float d = 1e9f;
+    glm::vec2 Torus = glm::vec2(2.0f, 1.3f);
+    float dT = sdTorus(p+glm::vec3(-2.0f, 0.0f, 0.0f),Torus);
+    d = min(d, dT);
+
+    return d;
+}
+glm::vec3 Calcnorm3(glm::vec3 p){
+    const float Eps = 0.008f;
+    return glm::normalize(glm::vec3(
+        map3(p+glm::vec3(Eps,0.0f,0.0f))-map3(p-glm::vec3(Eps,0.0f,0.0f)),
+        map3(p+glm::vec3(0.0f,Eps,0.0f))-map3(p-glm::vec3(0.0f,Eps,0.0f)),
+        map3(p+glm::vec3(0.0f,0.0f,Eps))-map3(p-glm::vec3(0.0f,0.0f,Eps))
+        )
+    );
+}
+//-------------------------
+float bordermap4(glm::vec3 p){
+    return 1e5f;
+    
+}
+float map4(glm::vec3 p){
+    
+    float d = 1e9;
+    float dG = sdFlatWorld(p);
+    glm::vec4 Sphere1 = glm::vec4(5.0, 0.0, 3.0, 1.0);
+    glm::vec4 Sphere2 = glm::vec4(-5.0, 0.0, 3.0, 1.0);
+    glm::vec4 Sphere3 = glm::vec4(5.0, 0.0, -3.0, 1.0);
+    glm::vec4 Sphere4 = glm::vec4(-5.0, 0.0, -3.0, 1.0);
+    float dW = opSmoothSubtraction(sdSphere(p, Sphere2), dG, 0.2);
+    dW = opSmoothUnion(dW, sdSphere(p,Sphere1), 0.2);
+    dW = min(dW, sdSphere(p, Sphere3));
+    dW = max(dW, -sdSphere(p, Sphere4));
+    d = min(d, dW);
+    return d;
+
+
+}
+glm::vec3 Calcnorm4(glm::vec3 p){
+    const float Eps = 0.008f;
+    return glm::normalize(glm::vec3(
+        map4(p+glm::vec3(Eps,0.0f,0.0f))-map4(p-glm::vec3(Eps,0.0f,0.0f)),
+        map4(p+glm::vec3(0.0f,Eps,0.0f))-map4(p-glm::vec3(0.0f,Eps,0.0f)),
+        map4(p+glm::vec3(0.0f,0.0f,Eps))-map4(p-glm::vec3(0.0f,0.0f,Eps))
+        )
+    );
+}
+//---------------
+
+
+
+float bordermaphub(int MODE, glm::vec3 p){
+    return bordermap4(p);
+    if(MODE== 1 || MODE==2) return bordermap1(p);
+    else if(MODE==3) return bordermap3(p);
+    else if(MODE==4) return bordermap4(p);
+    else return bordermap0(p);
+
+}
+float maphub(int MODE, glm::vec3 p){return map4(p);
+    if(MODE==1 || MODE==2) return map1(p);
+    else if(MODE==3) return map3(p);
+    else if(MODE==4) return map4(p);
+    else return map0(p);
+} 
+glm::vec3 Calcnormhub(int MODE, glm::vec3 p){return Calcnorm4(p);
+    if(MODE==1 || MODE==2) return Calcnorm1(p);
+    else if(MODE==3) return Calcnorm3(p);
+    else if(MODE==4) return Calcnorm4(p);
+    else return Calcnorm0(p);
+}
 int main() {
     glfwInit();
     GLFWwindow* w = glfwCreateWindow(ScreenHeight, ScreenWidth, "tri", 0, 0);
@@ -229,20 +292,22 @@ int main() {
 
     const string PATH = "shaders/";
     vector<string> list_to_open = {"shader", "scaner", "object"};
-    string to_open = list_to_open[1];
-    
+    string to_open = list_to_open[0];
+    int MODE =5;;
+    const float scan_radius = 3.0f;
+
     string vertexcode;
     string fragmentcode;
     ifstream vShaderfile;
     ifstream fShaderfile;    
     
 
-
+    
     vShaderfile.exceptions(ifstream::failbit | ifstream::badbit);
     fShaderfile.exceptions(ifstream::failbit | ifstream::badbit);
     try{
-        vShaderfile.open(PATH + to_open + ".vert");
-        fShaderfile.open(PATH + to_open + ".frag");
+        vShaderfile.open(PATH + to_open +".vert");
+        fShaderfile.open(PATH + to_open + to_string(MODE) + ".frag");
         stringstream vShaderStream, fShaderStream;
         vShaderStream << vShaderfile.rdbuf();
         fShaderStream << fShaderfile.rdbuf();
@@ -393,13 +458,13 @@ int main() {
     
     glm::vec3 dir = glm::vec3(1.0f, 0.0f, 0.0f);//for scaner
     glm::vec3 right;
-    glm::vec3 normal = Calcnorm(camera_pos);
+    glm::vec3 normal = Calcnormhub(MODE,camera_pos);
     if(to_open=="scaner"){
-        camera_pos-= normal*map(camera_pos).x; 
+        camera_pos-= normal*maphub(MODE,camera_pos); 
         dir = projDir(dir, normal);
     }
 
-    const float scan_radius = 3.0f;
+    
     
 
 
@@ -430,43 +495,45 @@ int main() {
         float current_Frame = glfwGetTime();
         if(to_open=="scaner"){
             camera_pos_copy = camera_pos;
-            normal = Calcnorm(camera_pos);
+            normal = Calcnormhub(MODE,camera_pos);
             dir = projDir(dir, normal);
             // float chatgpt = glm::step(0.95f, abs(normal.x));
             // chatgpt_help = glm::vec3(0.0f, 1.0f, 0.0f)*chatgpt-(glm::vec3(1.0f, 0.0f, 0.0f)*(1.0f-chatgpt));  
             // a = vec3(0.0, 1.0, 0.0);
             if(glfwGetKey(w, GLFW_KEY_W)== GLFW_PRESS){
                 camera_pos_copy+=camera_speed*glm::normalize(glm::cross(dir,normal));
-                if(bordermap(camera_pos_copy)>border_eps){
+                if(bordermaphub(MODE,camera_pos_copy)>border_eps){
                     camera_pos = camera_pos_copy;
                 }
             }
             if(glfwGetKey(w, GLFW_KEY_S)== GLFW_PRESS){
                 camera_pos_copy-=camera_speed*glm::normalize(glm::cross(dir,normal));
-                if(bordermap(camera_pos_copy)>border_eps){
+                if(bordermaphub(MODE,camera_pos_copy)>border_eps){
                     camera_pos = camera_pos_copy;
                 }
             }
 
             if(glfwGetKey(w, GLFW_KEY_A)== GLFW_PRESS){
                 camera_pos_copy-=camera_speed*dir;
-                if(bordermap(camera_pos_copy)>border_eps){
+                if(bordermaphub(MODE,camera_pos_copy)>border_eps){
                     camera_pos = camera_pos_copy;
                 }
             }
             if(glfwGetKey(w, GLFW_KEY_D)== GLFW_PRESS){
                 camera_pos_copy+=camera_speed*dir;
-                if(bordermap(camera_pos_copy)>border_eps){
+                if(bordermaphub(MODE,camera_pos_copy)>border_eps){
                     camera_pos = camera_pos_copy;
                 }
             }
-            normal = Calcnorm(camera_pos);
+            normal = Calcnormhub(MODE,camera_pos);
             dir = projDir(dir, normal);
             right = glm::normalize(glm::cross(dir, normal));
             dir = glm::normalize(glm::cross(normal,right));
             // cout<<"----\n";
             // cout<<right.x<<" "<<right.y<<" "<<right.z<<"\n";
             // cout<<dir.x<<" "<<dir.y<<" "<<dir.z<<"\n";
+            // cout<<"----\n";
+            // cout<<camera_pos.x<<" "<<camera_pos.y<<" "<<camera_pos.z<<"\n";
             // cout<<"----\n";
 
 

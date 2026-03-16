@@ -45,6 +45,7 @@ float sdCube(vec3 p,vec3 c, vec3 b){
 }
 float sdTorus( vec3 p, vec2 t )
 {
+    p.x-=2.0;
   vec2 q = vec2(length(p.xz)-t.x,p.y);
   return length(q)-t.y;
 }
@@ -57,39 +58,50 @@ float sdCylinder( vec3 p, vec3 c )
 {
   return length(p.xz-c.xy)-c.z;
 }
+float sdFlatWorld(vec3 p){
+    return p.y;
+}
+float sdHyperbolicParaboloid(vec3 p, float a, float b) {
+    float f = (p.x*p.x)/(a*a) - (p.y*p.y)/(b*b) - p.z;
+    float gradNorm = length(vec2(2.0*p.x/(a*a), -2.0*p.y/(b*b)));
+    return f / sqrt(gradNorm*gradNorm + 1.0);
+}
 
+float sdMobius(vec3 p)
+{
+    float R = 1.5;
+    float w = 1.0;
+    float t = 0.05;
 
+    float a = atan(p.y, p.x);
+    float r = length(p.xy);
+
+    float ca = cos(a*0.5);
+    float sa = sin(a*0.5);
+
+    vec2 q = vec2(r - R, p.z);
+
+    mat2 m = mat2(ca,-sa,sa,ca);
+    q = m * q;
+
+    vec2 d = abs(q) - vec2(w, t);
+    return min(max(d.x,d.y),0.0) + length(max(d,0.0));
+}
 
 vec2 cmp(vec2 a, vec2 b){
     return (a.x<b.x?a:b);
 }
 vec2 map(vec3 p){
     vec2 d = vec2(1e9, 0);
-
-    vec4 Sphere1 = vec4(3.0, 0.0, -2.0, 1.2);
-    vec2 Torus1 = vec2(1.0, 0.5);
-    vec3 Cylinder1 = vec3(3.0,5.0, 2.0);
-    vec3 RBox1 = vec3(10.0, 1.0, 10.0);
-    vec3 BBox = vec3(10.0, 20.0, 10.0);
-
-    vec2 dRb = vec2(sdRoundBox(p, RBox1, 0.0),4);//rad was 0.5
-    vec2 dCy =  vec2(sdCylinder(p, Cylinder1),3);
-    // vec2 dS = vec2(dSphere(p,Sphere1), 1);
-    // vec2 dT = vec2(sdTorus(p,Torus1), 1);
-    vec2 dBox = vec2(sdRoundBox(p,BBox, 0.0), 5);//5
-    // d = cmp(d, dS);   
-    // d = cmp(d, dT);
-    float dirka = opSmoothSubtraction(dCy.x, dRb.x, 0.3);
-    d = cmp(d, abs(dBox));
-    d = cmp(d, vec2(dirka,3));
+    vec2 Torus1 = vec2(2.0, 1.0);
     
-    // d = cmp(d, dCy);
+    d = cmp(d, vec2(sdMobius(p), 0));
 
     return d;
 }
 vec2 raymarch(vec3 ro, vec3 rd){
     vec2 t = vec2(0.0, 0);
-    const int Steps = 512;
+    const int Steps = 1024;
     const float Eps = 0.001;
     const float MaxDist = 100.0;
 
@@ -108,7 +120,7 @@ vec2 raymarch(vec3 ro, vec3 rd){
 }
 
 vec3 Calcnorm(vec3 p){
-    const float Eps = 0.001;
+    const float Eps = 0.005;
     return normalize(vec3(
         map(p+vec3(Eps,0.0,0.0)).x-map(p-vec3(Eps,0.0,0.0)).x,
         map(p+vec3(0.0,Eps,0.0)).x-map(p-vec3(0.0,Eps,0.0)).x,
@@ -117,6 +129,20 @@ vec3 Calcnorm(vec3 p){
     );
 }
 
+float curvature(vec3 p)
+{
+    float e = 0.008;
+
+    vec3 n  = Calcnorm(p);
+
+    vec3 nx = Calcnorm(p + vec3(e,0,0));
+    vec3 ny = Calcnorm(p + vec3(0,e,0));
+    vec3 nz = Calcnorm(p + vec3(0,0,e));
+
+    return (nx.x - n.x +
+            ny.y - n.y +
+            nz.z - n.z) / e;
+}
 void main(){
     vec2 uv = _UV;
     uv.x *=Aspect;
@@ -128,32 +154,29 @@ void main(){
 
 
     vec3 p = ro+rd*t.x;
-    const vec3 colors[6] = vec3[](
-        vec3(1.0),
-        vec3(0.66, 0.07, 0.68),
-        vec3(0.86, 0.79, 0.17),
-        vec3(0.98, 0.247, 0.008),
-        vec3(0.5, 0.5, 0.008),
-        vec3(1.0, 0.0, 0.008)
-        
+    const vec3 colors[3] = vec3[](
+       vec3(0.8, 0.8, 0.8),
+       vec3(1.0, 0.0, 0),
+       vec3(0.0, 1.0, 0.0)
     );
-    // vec3 lightDir = normalize(vec3(1.0, 2.0,1.3));
-    // vec3 n = Calcnorm(p);
-    // float diff = max(dot(n,lightDir),0.0);
-    // float ambient = 0.2;
     if(t.x>0.0){
-
         vec3 colorBase = colors[int(t.y)];
-        // FragColor = vec4(colorBase*(diff*0.9+ ambient), 1.0)
-        float cube_r=0.2;
-        // float space_even = step(0.5, fract((floor(p.x/cube_r)+floor(p.y/cube_r)+floor(p.z/cube_r))*0.5));
 
         float onigiri = step(0.0, sin(p.x*25)+sin(p.y*25)+sin(p.z*25));
-
         vec3 even_strong = vec3(0.3);
-        if(p.y<0) colorBase = vec3(0.0, 0.0, 0.7);
-        FragColor = vec4(colorBase+even_strong*onigiri, 1.0);
-        if(t.y==5){FragColor = vec4(1.0, 0.0, 0.008,0.0);}
+
+        float k = curvature(p);
+        k = tanh((k)*5.0);
+
+        float convex  = clamp(k,0.0, 0.7);
+        float concave = clamp(-k,0.0, 0.7);
+
+        colorBase = mix(colorBase, colors[1], concave);
+        colorBase = mix(colorBase, colors[2], convex);
+        
+        FragColor = vec4(colorBase + even_strong*onigiri,1.0);
+
+        // FragColor = vec4(vec3(abs(k)), 1.0);
     }    
     else{
         

@@ -66,24 +66,10 @@ vec2 cmp(vec2 a, vec2 b){
 vec2 map(vec3 p){
     vec2 d = vec2(1e9, 0);
 
-    vec4 Sphere1 = vec4(3.0, 0.0, -2.0, 1.2);
-    vec2 Torus1 = vec2(1.0, 0.5);
-    vec3 Cylinder1 = vec3(3.0,5.0, 2.0);
-    vec3 RBox1 = vec3(10.0, 1.0, 10.0);
-    vec3 BBox = vec3(10.0, 20.0, 10.0);
+    vec4 Sphere1 = vec4(0.0, 0.0, 0.0, 2.0);
 
-    vec2 dRb = vec2(sdRoundBox(p, RBox1, 0.0),4);//rad was 0.5
-    vec2 dCy =  vec2(sdCylinder(p, Cylinder1),3);
-    // vec2 dS = vec2(dSphere(p,Sphere1), 1);
-    // vec2 dT = vec2(sdTorus(p,Torus1), 1);
-    vec2 dBox = vec2(sdRoundBox(p,BBox, 0.0), 5);//5
-    // d = cmp(d, dS);   
-    // d = cmp(d, dT);
-    float dirka = opSmoothSubtraction(dCy.x, dRb.x, 0.3);
-    d = cmp(d, abs(dBox));
-    d = cmp(d, vec2(dirka,3));
-    
-    // d = cmp(d, dCy);
+    vec2 dSph = vec2(sdSphere(p,Sphere1), 5);//5
+    d = cmp(d,dSph);
 
     return d;
 }
@@ -128,32 +114,16 @@ void main(){
 
 
     vec3 p = ro+rd*t.x;
-    const vec3 colors[6] = vec3[](
-        vec3(1.0),
-        vec3(0.66, 0.07, 0.68),
-        vec3(0.86, 0.79, 0.17),
-        vec3(0.98, 0.247, 0.008),
-        vec3(0.5, 0.5, 0.008),
-        vec3(1.0, 0.0, 0.008)
-        
+    const vec3 colors[1] = vec3[](
+       vec3(0.337, 0.969, 0.596)
     );
-    // vec3 lightDir = normalize(vec3(1.0, 2.0,1.3));
-    // vec3 n = Calcnorm(p);
-    // float diff = max(dot(n,lightDir),0.0);
-    // float ambient = 0.2;
     if(t.x>0.0){
-
         vec3 colorBase = colors[int(t.y)];
-        // FragColor = vec4(colorBase*(diff*0.9+ ambient), 1.0)
-        float cube_r=0.2;
-        // float space_even = step(0.5, fract((floor(p.x/cube_r)+floor(p.y/cube_r)+floor(p.z/cube_r))*0.5));
-
+        vec3 colorCircle = vec3(0.988, 0.98, 0.471);
+        colorBase = mix(colorBase, colorCircle, step(p.y,0.0 )*step( length(p.xz), 0.5));
         float onigiri = step(0.0, sin(p.x*25)+sin(p.y*25)+sin(p.z*25));
-
         vec3 even_strong = vec3(0.3);
-        if(p.y<0) colorBase = vec3(0.0, 0.0, 0.7);
         FragColor = vec4(colorBase+even_strong*onigiri, 1.0);
-        if(t.y==5){FragColor = vec4(1.0, 0.0, 0.008,0.0);}
     }    
     else{
         
