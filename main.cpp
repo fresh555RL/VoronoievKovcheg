@@ -258,27 +258,99 @@ glm::vec3 Calcnorm4(glm::vec3 p){
     );
 }
 //---------------
+float bordermap5(glm::vec3 p){
+    return 1e5f;
+    
+}
+
+float sdMobius(glm::vec3 p)
+{
+    float R = 1.5;
+    float w = 1.0;
+    float t = 0.2;
+
+    float a = glm::atan(p.y, p.x);
+    float r = glm::length(p.xy());
+
+    float ca = cos(a*0.5);
+    float sa = sin(a*0.5);
+
+    glm::vec2 q = glm::vec2(r - R, p.z);
+
+    glm::mat2 m = glm::mat2(ca,-sa,sa,ca);
+    q = m * q;
+
+    glm::vec2 d = abs(q) - glm::vec2(w, t);
+    return min(max(d.x,d.y),0.0f) + glm::length(max(d,glm::vec2(0.0f)));
+}
+float map5(glm::vec3 p){
+    
+    float d =1e9;
+
+    d = sdCylinder(p, glm::vec3(1.0f, 2.0f, 1.0f));
+
+    return d;
 
 
+}
+glm::vec3 Calcnorm5(glm::vec3 p){
+    const float Eps = 0.008f;
+    return glm::normalize(glm::vec3(
+        map5(p+glm::vec3(Eps,0.0f,0.0f))-map5(p-glm::vec3(Eps,0.0f,0.0f)),
+        map5(p+glm::vec3(0.0f,Eps,0.0f))-map5(p-glm::vec3(0.0f,Eps,0.0f)),
+        map5(p+glm::vec3(0.0f,0.0f,Eps))-map5(p-glm::vec3(0.0f,0.0f,Eps))
+        )
+    );
+}
+//---------------------------
+float bordermap6(glm::vec3 p){
+    return 1e5f;
+    
+}
 
+float map6(glm::vec3 p){
+    
+    float d =1e9;
+
+    d = sdMobius(p);
+
+    return d;
+
+
+}
+glm::vec3 Calcnorm6(glm::vec3 p){
+    const float Eps = 0.008f;
+    return glm::normalize(glm::vec3(
+        map6(p+glm::vec3(Eps,0.0f,0.0f))-map6(p-glm::vec3(Eps,0.0f,0.0f)),
+        map6(p+glm::vec3(0.0f,Eps,0.0f))-map6(p-glm::vec3(0.0f,Eps,0.0f)),
+        map6(p+glm::vec3(0.0f,0.0f,Eps))-map6(p-glm::vec3(0.0f,0.0f,Eps))
+        )
+    );
+}
+//---------------------------
 float bordermaphub(int MODE, glm::vec3 p){
-    return bordermap4(p);
     if(MODE== 1 || MODE==2) return bordermap1(p);
     else if(MODE==3) return bordermap3(p);
     else if(MODE==4) return bordermap4(p);
+    else if (MODE==5) return bordermap5(p);
+    else if (MODE==6) return bordermap6(p);
     else return bordermap0(p);
 
 }
-float maphub(int MODE, glm::vec3 p){return map4(p);
+float maphub(int MODE, glm::vec3 p){
     if(MODE==1 || MODE==2) return map1(p);
     else if(MODE==3) return map3(p);
     else if(MODE==4) return map4(p);
+    else if (MODE==5) return map5(p);
+    else if (MODE==6) return map6(p);
     else return map0(p);
 } 
-glm::vec3 Calcnormhub(int MODE, glm::vec3 p){return Calcnorm4(p);
+glm::vec3 Calcnormhub(int MODE, glm::vec3 p){
     if(MODE==1 || MODE==2) return Calcnorm1(p);
     else if(MODE==3) return Calcnorm3(p);
     else if(MODE==4) return Calcnorm4(p);
+    else if (MODE==5) return Calcnorm5(p);
+    else if (MODE==6) return Calcnorm6(p);
     else return Calcnorm0(p);
 }
 int main() {
@@ -293,8 +365,8 @@ int main() {
     const string PATH = "shaders/";
     vector<string> list_to_open = {"shader", "scaner", "object"};
     string to_open = list_to_open[0];
-    int MODE =5;;
-    const float scan_radius = 3.0f;
+    int MODE =777;
+    const float scan_radius = 5.0f;
 
     string vertexcode;
     string fragmentcode;
