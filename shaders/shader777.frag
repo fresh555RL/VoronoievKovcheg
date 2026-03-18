@@ -7,81 +7,126 @@ uniform vec3 Cam_right;
 uniform vec3 Cam_front;
 uniform float FOV;
 uniform float timenow;
+
 in vec2 _UV;
 out vec4 FragColor;
 
-//----------------------------------------
-// Простая функция свечения
-vec4 getGlow(float minDist) {
-    float mainGlow = minDist * 1.2;
-    mainGlow = pow(mainGlow, 32.0);
-    mainGlow = clamp(mainGlow, 0.0, 1.0);
+// --- SDF ---
 
-    float outerGlow = minDist * 0.4;
-    outerGlow = pow(outerGlow, 2.0);
-    outerGlow = clamp(outerGlow, 0.0, 1.0);
-
-    vec4 glow = vec4(10.0, 5.0, 3.0, mainGlow);
-    glow += vec4(0.0, 0.0, 0.0, outerGlow);
-    glow.a = min(glow.a, 1.0);
-    return glow;
+float sdSphere(vec3 p, float r){
+    return length(p) - r;
 }
 
-//----------------------------------------
-// Простая сфера
-float sdSphere(vec3 p, vec3 center, float radius) {
-    return length(p - center) - radius;
+// аккреционный диск (без шума)
+float sdDisk(vec3 p)
+{
+    float disk = sdSphere(p, 5.0);
+
+    // тонкий слой
+    disk = max(disk, abs(p.y) - 0.02);
+
+    // внутренняя пустота
+    float inner = sdSphere(p, 1.5);
+
+    return max(disk, -inner);
 }
 
-//----------------------------------------
-// Минимальное расстояние до сцены
-float getDist(vec3 p) {
-    // Сфера в центре
-    float dSphere = sdSphere(p, vec3(0.0), 1.0);
-    
-    // Диск под сферой
-    float diskDist = max(length(p.xz) - 2.0, abs(p.y) - 0.1);
-    
-    // Возвращаем минимальное расстояние
-    return min(dSphere, diskDist);
+// --- scene ---
+
+vec2 map(vec3 p){
+    float d = sdDisk(p);
+    return vec2(d, 0.0);
 }
 
-//----------------------------------------
-// Рэймарчинг с мягким "притягиванием" к центру
-vec4 raymarch(vec3 ro, vec3 rd) {
-    vec3 p = ro;
-    float glow = 0.0;
+// --- raymarch с гравитацией ---
 
-    const int Steps = 128;
+vec2 raymarch(vec3 ro, vec3 rd){
+    vec2 t = vec2(0.0, 0.0);
+
+    const int Steps = 400;
     const float MaxDist = 100.0;
+    const float Eps = 0.001;
 
-    for (int i = 0; i < Steps; i++) {
-        float d = getDist(p);
-        glow = max(glow, 1.0 / (d + 1.0));
+    vec3 p = ro;
 
-        // "Гравитация" к центру
-        vec3 toCenter = normalize(-p);
-        float coef = clamp(d * 0.05, 0.0, 1.0);
-        rd = normalize(mix(rd, toCenter, coef));
+    for(int i = 0; i < Steps; i++){
+        float dS = map(p).x;
 
-        p += rd * max(d, 0.01);
-        if(d < 0.001 || length(p - ro) > MaxDist) break;
+        float distToCenter = length(p);
+
+        // 💥 ГРАВИТАЦИЯ (сохраняем!)
+        vec3 bendDir = normalize(-p);
+        float bend = dS / pow(distToCenter + 1.0, 2.0);
+
+        rd = mix(rd, bendDir, bend);
+
+        // шаг
+        float stepSize = min(dS, distToCenter) * 0.05;
+
+        p += rd * max(stepSize, 0.01);
+        t.x += stepSize;
+
+        // попадание
+        if(abs(dS) < Eps){
+            t.y = 0.0;
+            return t;
+        }
+
+        // "поглощение" в центре (чёрная дыра)
+        if(distToCenter < 1.0){
+            return vec2(-2.0, 0.0); // специальный код
+        }
+
+        if(t.x > MaxDist) break;
     }
 
-    vec4 gcol = getGlow(glow);
-    vec3 baseColor = vec3(0.1, 0.3, 0.7); // базовый цвет объекта
-    return vec4(mix(baseColor, gcol.rgb, gcol.a), 1.0);
+    return vec2(-1.0, 0.0);
 }
 
-//----------------------------------------
-void main() {
+// --- нормаль ---
+
+vec3 Calcnorm(vec3 p){
+    const float e = 0.001;
+    return normalize(vec3(
+        map(p + vec3(e,0,0)).x - map(p - vec3(e,0,0)).x,
+        map(p + vec3(0,e,0)).x - map(p - vec3(0,e,0)).x,
+        map(p + vec3(0,0,e)).x - map(p - vec3(0,0,e)).x
+    ));
+}
+
+// --- main ---
+
+void main(){
     vec2 uv = _UV;
     uv.x *= Aspect;
-    float scale = tan(radians(FOV) * 0.5);
+
+    float scale = tan(radians(FOV)*0.5);
     uv *= scale;
 
     vec3 rd = normalize(uv.x * Cam_right + uv.y * Cam_up + Cam_front);
     vec3 ro = Cam_pos;
 
-    FragColor = raymarch(ro, rd);
+    vec2 t = raymarch(ro, rd);
+
+    // попадание в сингулярность
+    if(t.x == -2.0){
+        FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
+    if(t.x > 0.0){
+        vec3 p = ro + rd * t.x;
+        vec3 n = Calcnorm(p);
+
+        vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));
+        float diff = max(dot(n, lightDir), 0.0);
+
+        vec3 baseColor = vec3(1.0, 0.7, 0.3);
+
+        FragColor = vec4(baseColor * diff, 1.0);
+    }
+    else{
+        // фон (можно потом текстуру космоса воткнуть)
+        FragColor = vec4(0.01, 0.01, 0.02, 1.0);
+    }
 }

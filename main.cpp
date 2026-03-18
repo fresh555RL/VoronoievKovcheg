@@ -354,6 +354,22 @@ glm::vec3 Calcnormhub(int MODE, glm::vec3 p){
     else return Calcnorm0(p);
 }
 int main() {
+
+    int idx_open;
+    int MODE =777;
+    cout<<"Write 0 for shader (recommended first)\nWrite 1 for scaner\n";
+    cin>>idx_open;
+    string idx_start = "\nWrite for visualisation:\n0 - dirka\n1 - sphere\n2 -sphere with plyama\n3 -donut\n4 -opuklosti\n5 - cylinder\n";
+    cout<<idx_start;
+    string idx_full = "6-Mobius\n7 -inf dimension\n8 - gyroid\n";
+    if(idx_open==0) cout<<idx_full;
+    cin>>MODE;
+    const string PATH = "shaders/";
+    vector<string> list_to_open = {"shader", "scaner", "object"};
+    string to_open = list_to_open[0];
+    
+    const float scan_radius = 5.0f;
+
     glfwInit();
     GLFWwindow* w = glfwCreateWindow(ScreenHeight, ScreenWidth, "tri", 0, 0);
     glfwMakeContextCurrent(w);
@@ -362,12 +378,7 @@ int main() {
     glfwSetCursorPosCallback(w, mouse_callback);
     
 
-    const string PATH = "shaders/";
-    vector<string> list_to_open = {"shader", "scaner", "object"};
-    string to_open = list_to_open[0];
-    int MODE =777;
-    const float scan_radius = 5.0f;
-
+    
     string vertexcode;
     string fragmentcode;
     ifstream vShaderfile;
