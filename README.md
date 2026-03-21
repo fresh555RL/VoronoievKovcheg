@@ -1,1 +1,1 @@
-Ya Vaxye tovarischi
+Pu Pu pu
