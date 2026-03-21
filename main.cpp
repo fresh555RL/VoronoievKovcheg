@@ -12,8 +12,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <set>
-#define STB_IMAGE_IMPLEMENTATION  
-#include "stb_image.h"
+
 
 using namespace std;
 
@@ -365,7 +364,7 @@ int main() {
     if(idx_open==0) cout<<idx_full;
     cin>>MODE;
     const string PATH = "shaders/";
-    vector<string> list_to_open = {"shader", "scaner", "object"};
+    vector<string> list_to_open = {"shader", "scaner"};
     string to_open = list_to_open[0];
     
     const float scan_radius = 5.0f;
@@ -419,93 +418,7 @@ int main() {
     glUseProgram(shaderProgram);
     unsigned int VBO, VAO, EBO;
     vector<int> idxes;
-    
-    if(to_open=="object"){
-        glEnable(GL_DEPTH_TEST);
-        vector<float> positions;
-        vector<float> normals;
-        vector<int> idxnormals;
-        
-        string path_model = (string("models/") + "Kalisa_for_engine" +".obj");
-        std::ifstream file(path_model);
-        std::string line;
-        glm::vec3 abc;
-        glm::vec3 rgb;
-        vector<int> indexV(4);
-        vector<int> indexN(4);
-        getline(file,line);
-        getline(file,line);
-        while (std::getline(file, line))
-        {
-            std::stringstream ss(line);
-            std::string type;
-            ss >> type;
-            if(type=="o" || type=="vn"){
-                continue;
-            }
-            if(type=="v"){
-                rgb.x=1.0;
-                rgb.y=1.0;
-                rgb.z=1.0;
-                ss>>abc.x>>abc.y>>abc.z;
-                if(ss>>rgb.x>>rgb.y>>rgb.z){}
-                
-                positions.push_back(abc.x);
-                positions.push_back(abc.y);
-                positions.push_back(abc.z);
-                positions.push_back(rgb.x);
-                positions.push_back(rgb.y);
-                positions.push_back(rgb.z);
-                
-
-            }
-            if(type=="vn"){
-                ss>>abc.x>>abc.y>>abc.z;
-                normals.push_back(abc.x);
-                normals.push_back(abc.y);
-                normals.push_back(abc.z);
-            }
-            if(type=="f"){
-                char trash;
-                bool flag = 0;
-                int countslash = 2;
-                if(countslash==1){
-                    ss>>indexV[0]>>trash>>indexN[0];if(flag){ss>>trash>>indexN[0];}
-                    ss>>indexV[1]>>trash>>indexN[1];if(flag){ss>>trash>>indexN[0];}
-                    ss>>indexV[2]>>trash>>indexN[2];if(flag){ss>>trash>>indexN[0];}
-                    ss>>indexV[3]>>trash>>indexN[3];if(flag){ss>>trash>>indexN[0];}
-                }
-                else{
-                    ss>>indexV[0]>>trash>>trash>>indexN[0];if(flag){ss>>trash>>trash>>indexN[0];}
-                    ss>>indexV[1]>>trash>>trash>>indexN[1];if(flag){ss>>trash>>trash>>indexN[0];}
-                    ss>>indexV[2]>>trash>>trash>>indexN[2];if(flag){ss>>trash>>trash>>indexN[0];}
-                    ss>>indexV[3]>>trash>>trash>>indexN[3];if(flag){ss>>trash>>trash>>indexN[0];}
-                }
-                
-                idxes.push_back(indexV[0]-1);
-                idxes.push_back(indexV[1]-1);
-                idxes.push_back(indexV[2]-1);
-                idxes.push_back(indexV[2]-1);
-                idxes.push_back(indexV[3]-1);
-                idxes.push_back(indexV[0]-1);
-            }   
-            
-        }
-        glGenBuffers(1, &VBO);
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &EBO);
-        glBindVertexArray(VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER,positions.size()*sizeof(float),positions.data(), GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(0));
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, idxes.size()*sizeof(int), idxes.data(), GL_STATIC_DRAW);
-
-    }
-    else{//not obj
+    //not obj
         
         vector<float> coords = {
         -1.0, -1.0, 1.0,
@@ -528,7 +441,7 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, idxes.size()*sizeof(int), idxes.data(), GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    }
+    
 
 
     int uni_MVP = glGetUniformLocation(shaderProgram, "MVP");
