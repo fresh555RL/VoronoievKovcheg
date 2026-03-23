@@ -1,5 +1,3 @@
-MAKEFLAGS += -s
-
 CC = g++
 CFLAGS = -Iinclude 
 LDFLAGS = -Llib -Wl,-rpath=./lib

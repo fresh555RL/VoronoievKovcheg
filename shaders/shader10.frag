@@ -18,7 +18,15 @@ float opSmoothUnion( float a, float b, float k )
     float h = max(k-abs(a-b),0.0);
     return min(a, b) - h*h*0.25/k;
 }
-
+float Union(float a, float b){
+    return min(a,b);
+}
+float Substraction(float a, float b){
+    return -Union(a,-b);
+}
+float Intersection(float a, float b){
+    return -Union(-a, -b); 
+}
 float opSmoothSubtraction( float a, float b, float k )
 {
     return -opSmoothUnion(a,-b,k);
@@ -43,41 +51,40 @@ float sdCube(vec3 p,vec3 c, vec3 b){
     vec3 q = abs(p-c) - b;
     return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
 }
-float sdTorus( vec3 p, vec2 t )
-{
-    p.x-=2.0;
-  vec2 q = vec2(length(p.xz)-t.x,p.y);
-  return length(q)-t.y;
-}
+
 float sdRoundBox( vec3 p, vec3 b, float r )
 {
   vec3 q = abs(p) - b + r;
   return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0) - r;
 }
-float sdCylinder( vec3 p, vec3 c )
-{
-  return length(p.xz-c.xy)-c.z;
-}
-float sdFlatWorld(vec3 p){
-    return p.y;
-}
-float sdHyperbolicParaboloid(vec3 p, float a, float b) {
-    float f = (p.x*p.x)/(a*a) - (p.y*p.y)/(b*b) - p.z;
-    float gradNorm = length(vec2(2.0*p.x/(a*a), -2.0*p.y/(b*b)));
-    return f / sqrt(gradNorm*gradNorm + 1.0);
-}
-
-
 
 vec2 cmp(vec2 a, vec2 b){
     return (a.x<b.x?a:b);
 }
 vec2 map(vec3 p){
-    vec2 d = vec2(1e9, 0);
+    float d = 1e9;
+    vec4 Sphere1 = vec4(5.0, 0.0, 0.0+sin(timenow)*6.0, 2.5);
+    vec3 Cube1 = vec3(5.0, 0.0, 0.0);
+    float d1 = opSmoothUnion(sdCube(p, Cube1, vec3(1.5)), sdSphere(p, Sphere1), 0.5);
+    vec4 Sphere2 = vec4(10.0, 0.0, 0.0+sin(timenow)*6.0, 2.0);
+    vec3 Cube2 = vec3(10.0, 0.0, 0.0);
+    float d2 = Substraction(sdCube(p, Cube2, vec3(1.5)), sdSphere(p, Sphere2));
+    vec4 Sphere3 = vec4(15.0, 0.0, 0.0+sin(timenow*0.7)*3.0, 2.0);
+    vec3 Cube3 = vec3(15.0, 0.0, 0.0);
+    float d3 = Substraction(sdSphere(p, Sphere3), sdCube(p, Cube3, vec3(1.5)));
+    vec4 Sphere4 = vec4(20.0, 0.0, 0.0+sin(timenow*0.7)*3.0, 1.7);
+    vec3 Cube4 = vec3(20.0, 0.0, 0.0);
+    float d4 = opSmoothSubtraction(sdSphere(p, Sphere4), sdCube(p, Cube4, vec3(1.5)), 0.4);
 
-    d = vec2(sin(p.x)+sin(p.y)+sin(p.z)+sin(timenow), 0);
+    // float d3 = opSmoothSubtraction;
+    d = min(d, d1);
+    d = min(d, d2);
+    d = min(d, d3);
+    d = min(d, d4);
+    // d = cmp(d, vec2(d2, 0));
+    // d = cmp(d, vec2(d3, 0));
 
-    return d;
+    return vec2(d,0 );
 }
 vec2 raymarch(vec3 ro, vec3 rd){
     vec2 t = vec2(0.0, 0);
@@ -122,7 +129,7 @@ void main(){
 
     vec3 p = ro+rd*t.x;
     const vec3 colors[3] = vec3[](
-       vec3(0.8, 0.8, 0.8),
+       vec3(0.8),
        vec3(1.0, 0.0, 0),
        vec3(0.0, 1.0, 0.0)
     );
