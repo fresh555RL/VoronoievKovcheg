@@ -367,7 +367,7 @@ int main() {
     vector<string> list_to_open = {"shader", "scaner"};
     string to_open = list_to_open[idx_open];
     
-    const float scan_radius = 5.0f;
+    const float scan_radius = 8.0f;
 
     glfwInit();
     GLFWwindow* w = glfwCreateWindow(ScreenHeight, ScreenWidth, "tri", 0, 0);
