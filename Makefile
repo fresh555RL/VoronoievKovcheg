@@ -1,6 +1,6 @@
 CC = g++
 CFLAGS = -Iinclude 
-LDFLAGS = -Llib -Wl,-rpath=./lib
+LDFLAGS = -Llib -Wl
 LIBS = -lglfw
 
 TARGET = main
