@@ -3,3 +3,5 @@ glad.o
 main.o
 libglfw.so
 build/
+.git
+.vscode
