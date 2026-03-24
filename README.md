@@ -1,4 +1,12 @@
-make && ./main
+for build 
+cd ./build
+cmake ..
+cmake --build . 
+
+then
+./main
+
+
 
 then write on console 0/1
 0 for 3d visualisation
