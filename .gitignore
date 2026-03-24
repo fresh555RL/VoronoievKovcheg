@@ -1,5 +1,5 @@
 main
 glad.o
 main.o
-lib/libglfw.so
+libglfw.so
 build/
