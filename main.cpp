@@ -363,7 +363,7 @@ int main() {
     string idx_full = "6-Mobius\n7 -inf dimension\n8 - gyroid\n9- inf dimension\n10- boolean visualisation\n777-Schwarzes Loch\n\n123 - you can write something in shader123.frag in function map() and test it\n";
     if(idx_open==0) cout<<idx_full;
     cin>>MODE;
-    const string PATH = "../shaders/";
+    const string PATH = "shaders/";
     vector<string> list_to_open = {"shader", "scaner"};
     string to_open = list_to_open[idx_open];
     

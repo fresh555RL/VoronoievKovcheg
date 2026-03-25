@@ -1,11 +1,4 @@
-for build 
-cd ./build
-cmake ..
-cmake --build . 
-
-then
-./main
-
+g++ main.cpp glad.c -Iinclude -Llib -lglfw3 -o main.exe
 
 
 then write on console 0/1
