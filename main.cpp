@@ -19,6 +19,7 @@ using namespace std;
 const int ScreenHeight = 1920;
 const int ScreenWidth = 1080;
 const float FOV = 70.0;
+float camera_speed = 0.10f;
 
 glm::vec3 camera_pos = glm::vec3(0.0f, 3.0f, 0.0f);
 glm::vec3 camera_front = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -474,6 +475,7 @@ int main() {
     int uni_time = glGetUniformLocation(shaderProgram, "timenow");
     
     int uni_scan_forward = glGetUniformLocation(shaderProgram, "dForward");
+    int uni_marches = glGetUniformLocation(shaderProgram, "Marches");
     int uni_scan_right = glGetUniformLocation(shaderProgram, "dRight");
     int uni_scan_Radius = glGetUniformLocation(shaderProgram, "Radius");
     glUniform3fv(uni_scan_forward,1,&dir[0]);
@@ -481,13 +483,20 @@ int main() {
     // glUniform3fv(,1,&camera_up[0]);  
     glUniform1f(uni_scan_Radius, scan_radius); 
 
-
-    const float camera_speed = 0.12f;
+    int March_steps = 512;
+    ifstream config("config.txt");
+    config>>camera_speed>> March_steps;
+    config.close();
+    camera_speed/=10.0f;
+    glUniform1i(uni_marches, March_steps);
     const float border_eps   = 0.18f;
     glm::vec3 camera_pos_copy;
     glUniform1f(uni_aspect, ((float)ScreenHeight/ScreenWidth));
     while(!glfwWindowShouldClose(w)){
 
+        if(glfwGetKey(w, GLFW_KEY_ESCAPE)== GLFW_PRESS){
+        exit(0);
+        }
         float current_Frame = glfwGetTime();
         if(to_open=="scaner"){
             camera_pos_copy = camera_pos;

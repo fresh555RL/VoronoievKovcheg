@@ -6,6 +6,7 @@ uniform vec3 Cam_up;
 uniform vec3 Cam_right;
 uniform vec3 Cam_front;
 uniform float FOV;
+uniform int Marches;
 uniform float timenow;
 in vec2 _UV;
 out vec4 FragColor;
@@ -153,7 +154,7 @@ void MapColor(vec3 p){
 
 }
 vec4 raymarch(vec3 ro, vec3 rd){
-    const int Steps = 512;
+    int Steps = Marches;
     const float Eps = 0.01;
     const float MaxDist = 100.0;
 
